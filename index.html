@@ -1,225 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Responsive Voice Studio</title>
-    <style>
-        :root {
-            --primary: #007bff;
-            --danger: #dc3545;
-            --bg: #f8f9fa;
-            --text: #333;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Studio</title>
 
-        body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            padding: 20px; 
-            background-color: var(--bg); 
-            color: var(--text);
-            margin: 0;
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-        .container { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
-            width: 100%; 
-            max-width: 600px; 
-            box-sizing: border-box;
-        }
-
-        h2 { text-align: center; margin-bottom: 20px; font-weight: 600; }
-
-        .hint-box {
-            background: #e7f3ff;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            margin-bottom: 15px;
-            border-left: 4px solid var(--primary);
-        }
-
-        textarea { 
-            width: 100%; 
-            height: 250px; 
-            padding: 15px; 
-            border: 2px solid #eee; 
-            border-radius: 12px; 
-            font-size: 16px; 
-            box-sizing: border-box; 
-            resize: none; 
-            transition: border 0.3s;
-        }
-
-        textarea:focus { border-color: var(--primary); outline: none; }
-
-        .controls { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 10px; 
-            margin-top: 15px; 
-        }
-
-        .full-width { grid-column: span 2; }
-
-        label { font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; display: block; }
-
-        select, button { 
-            padding: 14px; 
-            border-radius: 10px; 
-            border: 1px solid #ddd; 
-            font-size: 14px; 
-            cursor: pointer; 
-            width: 100%;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        button { 
-            background-color: var(--primary); 
-            color: white; 
-            border: none; 
-            font-weight: 600; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 8px;
-        }
-
-        button:active { transform: scale(0.98); }
-
-        .btn-secondary { background-color: #6c757d; }
-        .btn-danger { background-color: var(--danger); }
-
-        #start-stt.recording { 
-            background-color: var(--danger); 
-            animation: pulse 1.5s infinite; 
-        }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-
-        /* Mobile Adjustments */
-        @media (max-width: 480px) {
-            .container { padding: 15px; border-radius: 0; min-height: 100vh; }
-            textarea { height: 200px; }
-            .controls { grid-template-columns: 1fr; }
-            .full-width { grid-column: span 1; }
-        }
-    </style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-    <h2>Voice Studio</h2>
-    
-    <div class="hint-box">
-        <strong>Commands:</strong> "Question Mark" (?), "Comma" (,), "New Line", or say <strong>"Delete Last"</strong> to erase.
+<div class="app">
+
+    <header class="app-header">
+        <div class="brand">
+            <span class="brand-mark">◈</span>
+            <h1>Voice Studio</h1>
+        </div>
+        <p class="tagline">Speak it. Type it. Hear it back.</p>
+    </header>
+
+    <!-- Waveform: the signature element. Reacts to mic input while listening,
+         pulses while speaking, and glows red while capturing audio. -->
+    <div class="waveform" id="waveform" data-state="idle" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
     </div>
 
-    <textarea id="text-box" placeholder="Tap 'Start Listening'..."></textarea>
-    
-    <div class="controls">
-        <div class="full-width">
-            <label>Select Voice</label>
-            <select id="voice-select"><option>Loading...</option></select>
+    <main class="card">
+
+        <div class="status-row" id="status-row" hidden>
+            <span class="status-dot"></span>
+            <span id="status-text"></span>
         </div>
 
-        <button id="start-stt" class="full-width">🎤 Start Listening</button>
-        <button id="start-tts">🔊 Speak</button>
-        <button id="copy-btn" class="btn-secondary">📋 Copy</button>
-        <button id="clear-btn" class="btn-danger full-width">🗑️ Clear All</button>
-    </div>
+        <details class="hints">
+            <summary>Voice commands</summary>
+            <div class="hint-grid">
+                <span><kbd>question mark</kbd> → ?</span>
+                <span><kbd>comma</kbd> → ,</span>
+                <span><kbd>period</kbd> → .</span>
+                <span><kbd>exclamation mark</kbd> → !</span>
+                <span><kbd>new line</kbd> → ↵</span>
+                <span><kbd>delete last</kbd> → erase last sentence</span>
+            </div>
+        </details>
+
+        <textarea id="text-box" placeholder="Tap “Record” and speak, or just type here…"></textarea>
+        <div class="char-count"><span id="char-count">0</span> characters</div>
+
+        <section class="panel">
+            <div class="field">
+                <label for="voice-select">Voice</label>
+                <select id="voice-select"><option>Loading voices…</option></select>
+            </div>
+
+            <div class="field-row">
+                <div class="field">
+                    <label for="rate">Speed <span id="rate-value">1.0×</span></label>
+                    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+                </div>
+                <div class="field">
+                    <label for="pitch">Pitch <span id="pitch-value">1.0</span></label>
+                    <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
+                </div>
+            </div>
+        </section>
+
+        <div class="controls">
+            <button id="start-stt" class="btn btn-primary full-width">
+                <span class="btn-icon">🎤</span><span class="btn-label">Record</span>
+            </button>
+
+            <button id="start-tts" class="btn btn-accent">
+                <span class="btn-icon">🔊</span><span class="btn-label">Speak</span>
+            </button>
+            <button id="download-btn" class="btn btn-accent">
+                <span class="btn-icon">⬇</span><span class="btn-label">Download audio</span>
+            </button>
+
+            <button id="copy-btn" class="btn btn-ghost">
+                <span class="btn-icon">📋</span><span class="btn-label">Copy</span>
+            </button>
+            <button id="clear-btn" class="btn btn-ghost btn-danger-text">
+                <span class="btn-icon">🗑</span><span class="btn-label">Clear</span>
+            </button>
+        </div>
+
+        <div class="how-it-works">
+            <p class="how-it-works-title">How “Download audio” works</p>
+            <ol>
+                <li>Click <strong>Download audio</strong> below.</li>
+                <li>A browser prompt will pop up asking what to share — choose <strong>“This tab”</strong>.</li>
+                <li>Turn on <strong>“Share tab audio”</strong> before confirming (it's usually a toggle at the bottom-left of that prompt).</li>
+                <li>Your text starts speaking automatically — just wait for it to finish.</li>
+                <li>The recording stops itself and the audio file downloads on its own.</li>
+            </ol>
+            <p class="fineprint">Works best in Chrome or Edge on desktop. No sign-up, no API key — everything happens on your device.</p>
+        </div>
+    </main>
+
+    <footer class="app-footer">Runs entirely in your browser — nothing you say or type leaves this page.</footer>
 </div>
 
-<script>
-    const textBox = document.getElementById('text-box');
-    const voiceSelect = document.getElementById('voice-select');
-    const sttBtn = document.getElementById('start-stt');
-    const clearBtn = document.getElementById('clear-btn');
-    const copyBtn = document.getElementById('copy-btn');
-
-    // --- TTS LOGIC ---
-    let voices = [];
-    function populateVoices() {
-        voices = window.speechSynthesis.getVoices();
-        voiceSelect.innerHTML = voices
-            .map((v, i) => `<option value="${i}">${v.name}</option>`)
-            .join('');
-    }
-    window.speechSynthesis.onvoiceschanged = populateVoices;
-    populateVoices();
-
-    document.getElementById('start-tts').onclick = () => {
-        const utter = new SpeechSynthesisUtterance(textBox.value);
-        utter.voice = voices[voiceSelect.value];
-        window.speechSynthesis.speak(utter);
-    };
-
-    // --- STT LOGIC ---
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.continuous = true;
-    recognition.lang = 'en-US';
-
-    let isRecording = false;
-
-    sttBtn.onclick = () => {
-        if (!isRecording) { recognition.start(); } 
-        else { recognition.stop(); }
-    };
-
-    recognition.onstart = () => {
-        isRecording = true;
-        sttBtn.innerText = "🛑 Stop Listening";
-        sttBtn.classList.add('recording');
-    };
-
-    recognition.onend = () => {
-        isRecording = false;
-        sttBtn.innerText = "🎤 Start Listening";
-        sttBtn.classList.remove('recording');
-    };
-
-    recognition.onresult = (event) => {
-        let transcript = event.results[event.results.length - 1][0].transcript;
-        let text = transcript.toLowerCase().trim();
-
-        // Voice Command: DELETE LAST
-        if (text.includes("delete last")) {
-            let sentences = textBox.value.trim().split('. ');
-            sentences.pop();
-            textBox.value = sentences.join('. ') + (sentences.length > 0 ? '. ' : '');
-            return;
-        }
-
-        // Punctuation Mapping
-        const maps = [
-            { r: /\bquestion mark\b/g, s: "?" },
-            { r: /\bcomma\b/g, s: "," },
-            { r: /\bexclamation (mark|point)\b/g, s: "!" },
-            { r: /\bperiod|full stop\b/g, s: "." },
-            { r: /\bnew line\b/g, s: "\n" }
-        ];
-
-        maps.forEach(m => text = text.replace(m.r, m.s));
-        text = text.replace(/\s+([?.!,])/g, '$1'); // Clean spaces
-        text = text.charAt(0).toUpperCase() + text.slice(1); // Capitalize
-
-        const gap = (textBox.value.length > 0 && !textBox.value.endsWith('\n')) ? " " : "";
-        textBox.value += gap + text;
-    };
-
-    // --- UTILITIES ---
-    clearBtn.onclick = () => textBox.value = "";
-    copyBtn.onclick = () => {
-        navigator.clipboard.writeText(textBox.value);
-        const oldText = copyBtn.innerText;
-        copyBtn.innerText = "✅ Copied!";
-        setTimeout(() => copyBtn.innerText = oldText, 2000);
-    };
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
