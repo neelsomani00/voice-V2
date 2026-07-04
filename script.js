@@ -10,6 +10,7 @@
     const sttBtn        = document.getElementById('start-stt');
     const ttsBtn        = document.getElementById('start-tts');
     const downloadBtn   = document.getElementById('download-btn');
+    const downloadVoiceSelect = document.getElementById('download-voice-select');
     const clearBtn       = document.getElementById('clear-btn');
     const copyBtn        = document.getElementById('copy-btn');
     const charCount      = document.getElementById('char-count');
@@ -161,92 +162,63 @@
         setStatus('This browser doesn\u2019t support speech recognition. Try Chrome or Edge.', 'error', true);
     }
 
-    // ---------- Download audio (tab-audio capture) ----------
-    let isCapturing = false;
+    // ---------- Download audio (works on desktop AND mobile) ----------
+    // Uses a free, key-free TTS proxy (StreamElements' public speech endpoint,
+    // which wraps Amazon Polly / Google Cloud voices) to fetch a real MP3 file.
+    // This avoids screen/tab-capture entirely, which mobile browsers don't support.
+    const TTS_ENDPOINT = 'https://api.streamelements.com/kappa/v2/speech';
+    const MAX_DOWNLOAD_CHARS = 500; // the free endpoint truncates longer text
+
+    let isDownloading = false;
 
     downloadBtn.addEventListener('click', async () => {
-        if (isCapturing) return;
+        if (isDownloading) return;
 
-        if (!textBox.value.trim()) {
+        const text = textBox.value.trim();
+        if (!text) {
             setStatus('Type or dictate something first.', 'error');
             return;
         }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-            setStatus('Audio download needs tab-capture support — try Chrome or Edge on desktop.', 'error', true);
+        if (text.length > MAX_DOWNLOAD_CHARS) {
+            setStatus(`Text is ${text.length} characters — please shorten to ${MAX_DOWNLOAD_CHARS} or fewer for downloads.`, 'error', true);
             return;
         }
 
-        let displayStream;
+        isDownloading = true;
+        downloadBtn.classList.add('recording');
+        downloadBtn.querySelector('.btn-label').textContent = 'Generating…';
+        setWaveState('speaking');
+        setStatus('Generating your audio file…', 'info', true);
+
         try {
-            setStatus('Choose "This tab" and enable "Share tab audio" in the prompt…', 'info', true);
-            displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        } catch (err) {
-            setStatus('Screen-share permission was cancelled, so there\u2019s no audio to capture.', 'error');
-            return;
-        }
+            const voice = downloadVoiceSelect.value || 'Brian';
+            const url = `${TTS_ENDPOINT}?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Request failed (${response.status})`);
 
-        const audioTracks = displayStream.getAudioTracks();
-        displayStream.getVideoTracks().forEach(t => t.stop());
-
-        if (!audioTracks.length) {
-            displayStream.getTracks().forEach(t => t.stop());
-            setStatus('No tab audio was shared — make sure "Share tab audio" is checked.', 'error', true);
-            return;
-        }
-
-        const audioStream = new MediaStream(audioTracks);
-        const chunks = [];
-        let recorder;
-        try {
-            recorder = new MediaRecorder(audioStream);
-        } catch (err) {
-            displayStream.getTracks().forEach(t => t.stop());
-            setStatus('This browser can\u2019t record the captured audio.', 'error');
-            return;
-        }
-
-        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-        recorder.onstop = () => {
-            displayStream.getTracks().forEach(t => t.stop());
-            isCapturing = false;
-            downloadBtn.classList.remove('recording');
-            downloadBtn.querySelector('.btn-label').textContent = 'Download audio';
-            setWaveState('idle');
-
-            if (!chunks.length) {
-                setStatus('No audio was captured — please try again.', 'error');
-                return;
+            const blob = await response.blob();
+            if (!blob.size || !blob.type.startsWith('audio')) {
+                throw new Error('No audio came back');
             }
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            const url = URL.createObjectURL(blob);
+
+            const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            const words = textBox.value.trim().split(/\s+/).slice(0, 4).join('-').replace(/[^\w-]/g, '') || 'voice-studio';
-            a.href = url;
-            a.download = `${words}.webm`;
+            const words = text.split(/\s+/).slice(0, 4).join('-').replace(/[^\w-]/g, '') || 'voice-studio';
+            a.href = objectUrl;
+            a.download = `${words}.mp3`;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
             setStatus('Audio downloaded.', 'info');
-        };
-
-        // If the user stops sharing from the browser's own UI, wrap up gracefully.
-        audioTracks[0].addEventListener('ended', () => { if (recorder.state !== 'inactive') recorder.stop(); });
-
-        isCapturing = true;
-        downloadBtn.classList.add('recording');
-        downloadBtn.querySelector('.btn-label').textContent = 'Recording…';
-        setStatus('Recording started — playing your text now.', 'info', true);
-        setWaveState('recording');
-        recorder.start();
-
-        window.speechSynthesis.cancel();
-        const utter = buildUtterance();
-        utter.onend = () => { if (recorder.state !== 'inactive') recorder.stop(); };
-        utter.onerror = () => { if (recorder.state !== 'inactive') recorder.stop(); };
-        // Small delay so the recorder is fully live before speech starts.
-        setTimeout(() => window.speechSynthesis.speak(utter), 250);
+        } catch (err) {
+            setStatus('Couldn\u2019t generate audio right now — the free voice service may be busy. Try again in a moment.', 'error', true);
+        } finally {
+            isDownloading = false;
+            downloadBtn.classList.remove('recording');
+            downloadBtn.querySelector('.btn-label').textContent = 'Download audio';
+            setWaveState('idle');
+        }
     });
 
     // ---------- Utilities ----------
